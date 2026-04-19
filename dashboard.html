@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MaliPay Dashboard</title>
+
+<style>
+body { margin: 0; font-family: "Segoe UI", sans-serif; color: #111; }
+#bg-video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: brightness(0.75) saturate(1.4); }
+body::before { content: ""; position: fixed; inset: 0; background: linear-gradient(135deg, rgba(255,140,0,0.35), rgba(255,80,0,0.25)); z-index: -1; }
+.dashboard-box { max-width: 420px; width: 92%; margin: 20px auto; padding: 20px; border-radius: 22px; background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); box-shadow: 0 15px 35px rgba(0,0,0,0.3); animation: fadeUp 0.5s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+.user-card { background: rgba(255,255,255,0.95); padding: 12px; margin-top: 10px; border-radius: 14px; font-size: 14px; }
+button { width: 100%; padding: 12px; margin-top: 12px; border-radius: 14px; border: none; font-weight: bold; cursor: pointer; background: linear-gradient(45deg,#ff9a00,#ff6a00); color: white; }
+button:disabled { opacity: 0.5; }
+input, textarea { width: 100%; padding: 12px; margin-top: 10px; border-radius: 12px; border: 1px solid #ccc; background: white; }
+#conversionBox{ margin-top:10px;font-size:14px;display:none;}
+</style>
+</head>
+
+<body>
+
+<video autoplay muted loop id="bg-video">
+<source src="bg.mp4" type="video/mp4">
+</video>
+
+<header style="text-align:center;padding:14px;font-size:22px;font-weight:bold;color:#ff9a00;">
+💎 MaliPay — Dashboard
+</header>
+
+<main>
+<section class="dashboard-box">
+
+<h2 id="welcome"></h2>
+
+<p>💰 Solde actuel</p>
+<p id="solde" style="font-size:26px;font-weight:bold;color:#ff9a00;"></p>
+
+<button onclick="logout()" style="background:crimson;">🚪 Déconnexion</button>
+
+<hr>
+
+<h3 onclick="toggleNotifications()" style="cursor:pointer;">
+📩 Notifications (<span id="notifCount">0</span>)
+</h3>
+<div id="notifBox" style="display:none;"></div>
+
+<hr>
+
+<h3 onclick="togglePassword()" style="cursor:pointer;">
+🔐 Changer mot de passe
+</h3>
+<div id="passwordBox" style="display:none;">
+<input id="oldPass" type="password" placeholder="Ancien mot de passe">
+<input id="newPass" type="password" placeholder="Nouveau mot de passe">
+<button onclick="changePassword()">Modifier</button>
+<p id="passMsg"></p>
+</div>
+
+<hr>
+
+<h3 onclick="toggleTransfer()" style="cursor:pointer;">
+💸 Envoyer de l'argent
+</h3>
+
+<div id="transferBox" style="display:none;">
+<input id="receiver" placeholder="Numéro destinataire">
+<input id="amount" type="number" placeholder="Montant">
+<div id="conversionBox"></div>
+<textarea id="reason" placeholder="Raison (facultatif)"></textarea>
+<label>📅 Programmer transfert (optionnel)</label>
+<input id="scheduleDate" type="datetime-local">
+<button id="sendBtn" onclick="sendMoney()">Envoyer</button>
+<p id="message"></p>
+</div>
+
+</section>
+</main>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+import { getDatabase, ref, get, update, push, remove } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCEFcwjYF3ikR0wdV0bnok50w_TkB_PAVc",
+  authDomain: "ma-money3.firebaseapp.com",
+  databaseURL: "https://ma-money3-default-rtdb.firebaseio.com",
+  projectId: "ma-money3"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let currentUser = JSON.parse(localStorage.getItem("loggedUser"));
+if(!currentUser) window.location.href="login.html";
+
+const welcome=document.getElementById("welcome");
+const soldeBox=document.getElementById("solde");
+const messageBox=document.getElementById("message");
+const notifBox=document.getElementById("notifBox");
+const notifCount=document.getElementById("notifCount");
+const sendBtn=document.getElementById("sendBtn");
+const receiverInput=document.getElementById("receiver");
+const amountInput=document.getElementById("amount");
+const conversionBox=document.getElementById("conversionBox");
+
+welcome.innerText="👋Bienvenue "+currentUser.name;
+
+/* ===== MULTI DEVISE ===== */
+
+const currencyMap={
+"+223":{code:"XOF",symbol:"FCFA"},
+"+33":{code:"EUR",symbol:"€"},
+"+1":{code:"USD",symbol:"$"},
+"+44":{code:"GBP",symbol:"£"},
+"+234":{code:"NGN",symbol:"₦"},
+"+226":{code:"XOF",symbol:"FCFA"},
+"+227":{code:"XOF",symbol:"FCFA"},
+"+221":{code:"XOF",symbol:"FCFA"},
+"+225":{code:"XOF",symbol:"FCFA"},
+"+86":{code:"SNY",symbol:"¥"}
+};
+
+function normalizePhone(phone){
+return phone.replace(/\s+/g,'').replace(/[^+\d]/g,'');
+}
+
+function getCurrency(phone){
+for(const p in currencyMap){
+if(phone.startsWith(p)) return currencyMap[p];
+}
+return currencyMap["+223"];
+}
+
+async function getLiveRate(from,to){
+if(from===to) return 1;
+try{
+const res=await fetch(`https://open.er-api.com/v6/latest/${from}`);
+const data=await res.json();
+if(data.result==="success" && data.rates[to]){
+return data.rates[to];
+}
+return null;
+}catch{
+return null;
+}
+}
+
+function formatMoney(a){ return Number(a).toLocaleString("fr-FR"); }
+
+async function loadBalance(){
+const snap=await get(ref(db,"users/"+currentUser.phone));
+if(snap.exists()){
+currentUser=snap.val();
+localStorage.setItem("loggedUser",JSON.stringify(currentUser));
+const cur=getCurrency(currentUser.phone);
+soldeBox.innerText=formatMoney(currentUser.solde)+" "+cur.symbol;
+}
+}
+loadBalance();
+
+/* ===== CONVERSION LIVE VISUELLE ===== */
+
+async function updateConversion(){
+const receiverPhone=normalizePhone(receiverInput.value.trim());
+const amount=parseFloat(amountInput.value);
+if(!receiverPhone || !amount){ conversionBox.style.display="none"; return; }
+
+const senderCur=getCurrency(currentUser.phone);
+const receiverCur=getCurrency(receiverPhone);
+
+const rate=await getLiveRate(senderCur.code,receiverCur.code);
+if(!rate){ conversionBox.style.display="none"; return; }
+
+const converted=amount*rate;
+
+conversionBox.style.display="block";
+conversionBox.innerHTML=
+`💱 1 ${senderCur.symbol} = ${rate.toFixed(4)} ${receiverCur.symbol}<br>
+💰 Destinataire recevra : <strong>${formatMoney(converted)} ${receiverCur.symbol}</strong>`;
+}
+receiverInput.addEventListener("input",updateConversion);
+amountInput.addEventListener("input",updateConversion);
+
+/* ===== ENVOI ARGENT ===== */
+
+window.sendMoney=async function(){
+
+if(sendBtn.disabled) return;
+sendBtn.disabled=true;
+sendBtn.innerText="⏳Traitement...";
+
+try{
+
+const receiverPhone=normalizePhone(receiverInput.value.trim());
+const amount=parseFloat(amountInput.value);
+const reason=document.getElementById("reason").value.trim();
+const scheduleDate=document.getElementById("scheduleDate").value;
+
+if(!receiverPhone || amount<=0){
+messageBox.innerText="❌Données invalides";
+resetButton();return;
+}
+
+const senderSnap=await get(ref(db,"users/"+currentUser.phone));
+const receiverSnap=await get(ref(db,"users/"+receiverPhone));
+const treasurySnap=await get(ref(db,"treasury"));
+
+if(!senderSnap.exists()||!receiverSnap.exists()){
+messageBox.innerText="❌Compte introuvable";
+resetButton();return;
+}
+
+let sender=senderSnap.val();
+let receiverData=receiverSnap.val();
+let treasury=treasurySnap.exists()?treasurySnap.val():{balance:0,rate:0.01};
+
+if(sender.frozen){messageBox.innerText="❌Compte gelé";resetButton();return;}
+if(receiverData.frozen){messageBox.innerText="❌Destinataire gelé";resetButton();return;}
+
+const senderCur=getCurrency(sender.phone);
+const receiverCur=getCurrency(receiverPhone);
+const rate=await getLiveRate(senderCur.code,receiverCur.code);
+if(!rate){messageBox.innerText="❌Impossible de récupérer le taux";resetButton();return;}
+
+let convertedAmount=amount*rate;
+let fee=amount*treasury.rate;
+let total=amount+fee;
+
+if(sender.solde<total){
+messageBox.innerText="❌Solde insuffisant";
+resetButton();return;
+}
+
+/* ===== TRANSFERT PROGRAMMÉ MULTI-DEVISE FIXÉ ===== */
+
+if(scheduleDate){
+await push(ref(db,"scheduledTransfers"),{
+from:sender.phone,
+to:receiverPhone,
+amountOriginal:amount,
+amountConverted:convertedAmount,
+fee:fee,
+rateUsed:rate,
+senderCurrency:senderCur.code,
+receiverCurrency:receiverCur.code,
+reason,
+scheduledFor:scheduleDate
+});
+messageBox.innerText="📅Transfert programmé";
+resetForm();resetButton();return;
+}
+
+/* ===== TRANSFERT IMMÉDIAT ===== */
+
+sender.solde-=total;
+receiverData.solde+=convertedAmount;
+treasury.balance+=fee;
+
+await update(ref(db,"users/"+sender.phone),sender);
+await update(ref(db,"users/"+receiverPhone),receiverData);
+await update(ref(db,"treasury"),treasury);
+
+const tx=await push(ref(db,"history"),{
+from:sender.phone,
+to:receiverPhone,
+amountOriginal:amount,
+amountConverted:convertedAmount,
+fee,
+rateUsed:rate,
+reason,
+date:new Date().toLocaleString()
+});
+
+/* Notifications complètes avec réclamation */
+
+await push(ref(db,"notifications/"+receiverPhone),{
+title:"💰Argent reçu",
+phone:sender.phone,
+amount:convertedAmount,
+reason,
+date:new Date().toLocaleString(),
+claimable:false
+});
+
+await push(ref(db,"notifications/"+sender.phone),{
+title:"📤Argent envoyé",
+phone:receiverPhone,
+amount:amount,
+reason,
+date:new Date().toLocaleString(),
+claimable:true,
+txId:tx.key
+});
+
+messageBox.innerText="✅Transfert réussi";
+resetForm();loadBalance();loadNotifications();
+
+}catch(e){
+messageBox.innerText="❌Erreur : "+e.message;
+}
+
+resetButton();
+};
+
+/* ===============================
+   MOTEUR TRANSFERT PROGRAMMÉ PRO
+================================ */
+
+async function processScheduledTransfers(){
+
+const scheduledRef = ref(db,"scheduledTransfers");
+const snapshot = await get(scheduledRef);
+
+if(!snapshot.exists()) return;
+
+const transfers = snapshot.val();
+const now = Date.now();
+
+for(const [id, tx] of Object.entries(transfers)){
+
+if(tx.executed === true) continue;
+
+if(!tx.scheduledFor) continue;
+
+const scheduledTime = new Date(tx.scheduledFor).getTime();
+
+if(now < scheduledTime) continue;
+
+/* ===== Récupération comptes ===== */
+
+const senderSnap = await get(ref(db,"users/"+tx.from));
+const receiverSnap = await get(ref(db,"users/"+tx.to));
+const treasurySnap = await get(ref(db,"treasury"));
+
+if(!senderSnap.exists() || !receiverSnap.exists()){
+console.log("Compte introuvable");
+continue;
+}
+
+let sender = senderSnap.val();
+let receiver = receiverSnap.val();
+let treasury = treasurySnap.exists() ? treasurySnap.val() : {balance:0,rate:0.01};
+
+/* ===== Vérifications sécurité ===== */
+
+if(sender.frozen || receiver.frozen){
+console.log("Compte gelé");
+continue;
+}
+
+let totalDebit = tx.amountOriginal + tx.fee;
+
+if(sender.solde < totalDebit){
+console.log("Solde insuffisant");
+continue;
+}
+
+/* ===== Débit / Crédit ===== */
+
+sender.solde -= totalDebit;
+receiver.solde += tx.amountConverted;
+treasury.balance += tx.fee;
+
+/* ===== Mise à jour comptes ===== */
+
+await update(ref(db,"users/"+tx.from), sender);
+await update(ref(db,"users/"+tx.to), receiver);
+await update(ref(db,"treasury"), treasury);
+
+/* ===== Historique transaction ===== */
+
+const historyRef = await push(ref(db,"history"),{
+from: tx.from,
+to: tx.to,
+amountOriginal: tx.amountOriginal,
+amountConverted: tx.amountConverted,
+fee: tx.fee,
+rateUsed: tx.rateUsed,
+reason: tx.reason,
+date: Date.new(),
+scheduled: true,
+status: "executed"
+});
+
+/* ===== Notifications ===== */
+
+await push(ref(db,"notifications/"+tx.to),{
+title:"💰 Argent reçu (programmé)",
+phone:tx.from,
+amount:tx.amountConverted,
+date:new Date().toLocaleString(),
+claimable:false
+});
+
+await push(ref(db,"notifications/"+tx.from),{
+title:"📤 Argent envoyé (programmé)",
+phone:tx.to,
+amount:tx.amountOriginal,
+date:new Date().toLocaleString(),
+claimable:true,
+txId:historyRef.key
+});
+
+/* ===== Marquer exécuté ===== */
+
+await update(ref(db,"scheduledTransfers/"+id),{
+executed:true,
+executedAt:Date.now()
+});
+
+}
+
+}
+
+/* Vérification toutes les 5 secondes */
+processScheduledTransfers();
+setInterval(processScheduledTransfers,5000);
+
+
+/* ===============================
+   SYSTEME RECLAMATION PRO
+================================ */
+
+window.sendClaim = async function(txId){
+
+const historySnap = await get(ref(db,"history/"+txId));
+if(!historySnap.exists()){
+alert("Transaction introuvable");
+return;
+}
+
+const tx = historySnap.val();
+
+/* Vérifier si déjà réclamé */
+
+if(tx.claimRequested){
+alert("Réclamation déjà envoyée.");
+return;
+}
+
+const claimData = {
+txId: txId,
+from: tx.from,
+to: tx.to,
+amountOriginal: tx.amountOriginal,
+amountConverted: tx.amountConverted,
+fee: tx.fee,
+reason: tx.reason || "",
+date: tx.date,
+status: "pending",
+createdAt: Date.now()
+};
+
+/* Envoyer au service */
+
+await push(ref(db,"serviceClaims"), claimData);
+
+/* Marquer transaction */
+
+await update(ref(db,"history/"+txId),{
+claimRequested:true
+});
+
+alert("Votre réclamation a été envoyée au service.");
+};
+
+/* ===== NOTIFICATIONS ===== */
+
+async function loadNotifications(){
+const snap=await get(ref(db,"notifications/"+currentUser.phone));
+notifBox.innerHTML="";
+let count=0;
+if(snap.exists()){
+Object.entries(snap.val()).reverse().forEach(([id,n])=>{
+count++;
+notifBox.innerHTML+=`
+<div class="user-card">
+<strong>${n.title}</strong><br>
+📱 ${n.phone}<br>
+💰 ${formatMoney(n.amount)}<br>
+🕒 ${n.date}<br>
+${n.reason||""}
+${n.claimable?`<button onclick="sendClaim('${n.txId}')" style="background:red;">🚨 Réclamation</button>`:""}
+<button onclick="deleteNotif('${id}')" style="background:crimson;">🗑 Supprimer</button>
+</div>`;
+});
+}
+notifCount.innerText=count;
+}
+loadNotifications();
+
+window.deleteNotif=async function(id){
+await remove(ref(db,"notifications/"+currentUser.phone+"/"+id));
+loadNotifications();
+};
+
+function resetForm(){
+receiverInput.value="";
+amountInput.value="";
+document.getElementById("reason").value="";
+document.getElementById("scheduleDate").value="";
+conversionBox.style.display="none";
+}
+
+function resetButton(){
+sendBtn.disabled=false;
+sendBtn.innerText="Envoyer";
+}
+
+window.toggleNotifications=()=>notifBox.style.display=notifBox.style.display==="none"?"block":"none";
+window.togglePassword=()=>passwordBox.style.display=passwordBox.style.display==="none"?"block":"none";
+window.toggleTransfer=()=>transferBox.style.display=transferBox.style.display==="none"?"block":"none";
+window.logout=function(){localStorage.removeItem("loggedUser");window.location.href="login.html";};
+
+</script>
+</body>
+</html>
