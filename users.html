@@ -54,7 +54,16 @@ small { color:gray; }
 <p id="countryInfo"></p>
 <input id="newPass" placeholder="Mot de passe">
 <input id="newSolde" type="number" placeholder="Solde initial">
-<input id="newPhoto" placeholder="URL photo (optionnel)">
+<h4>📸 Photo utilisateur (obligatoire)</h4>
+
+<input type="file" id="photoFile" accept="image/*">
+
+<button type="button" onclick="openCamera()">📷 Prendre photo</button>
+
+<video id="camera" class="hidden" autoplay></video>
+<canvas id="canvas" class="hidden"></canvas>
+
+<img id="previewPhoto" class="avatar hidden">
 
 <button onclick="addUser()">Créer utilisateur</button>
 <p id="addMsg"></p>
@@ -97,10 +106,13 @@ import { initializeApp } from
 import { getDatabase, ref, get, set, update, remove }
 from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL }
+from "https://www.gstatic.com/firebasejs/12.12.0/firebase-storage.js";
 const app = initializeApp({
-databaseURL:"https://ma-money3-default-rtdb.firebaseio.com"
+databaseURL:"https://ma-money4-default-rtdb.firebaseio.com"
 });
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 const table = document.getElementById("userTable");
 const userBox = document.getElementById("userBox");
@@ -259,10 +271,9 @@ const idCard=newIdCard.value.trim();
 const phone=iti.getNumber();
 const password=newPass.value.trim();
 const solde=parseFloat(newSolde.value);
-const photo=newPhoto.value.trim();
 const msg=addMsg;
 
-if(!name||!phone||!password||isNaN(solde)){
+if(!name||!phone||!password||isNaN(solde)||!selectedFile){
 msg.innerText="❌ Champs invalides";
 return;
 }
@@ -275,11 +286,18 @@ return;
 
 const currency=detectCurrency(phone);
 
-await set(ref(db,"users/"+phone),{
-name,dob,birthPlace,nationality,idCard,
-phone,password,solde,currency,photo,
-frozen:false,
-createdAt:new Date().toLocaleString()
+const storageRef = sRef(storage, "users/" + phone + "_" + selectedFile.name);
+
+await uploadBytes(storageRef, selectedFile);
+
+const photoURL = await getDownloadURL(storageRef);
+
+await set(ref(db, "users/" + phone), {
+  name, dob, birthPlace, nationality, idCard,
+  phone, password, solde, currency,
+  photo: photoURL,
+  frozen: false,
+  createdAt: new Date().toLocaleString()
 });
 
 msg.innerText="✅ Utilisateur ajouté";
@@ -324,6 +342,48 @@ doc.text("Signature MA MONEY",130,280);
 doc.save("Fiche_"+u.phone+".pdf");
 };
 
+
+let selectedFile = null;
+
+/* 📂 IMPORT IMAGE */
+document.getElementById("photoFile").addEventListener("change",(e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  selectedFile = file;
+
+  document.getElementById("previewPhoto").src = URL.createObjectURL(file);
+  document.getElementById("previewPhoto").classList.remove("hidden");
+});
+
+/* 📷 CAMERA */
+window.openCamera = async function(){
+  const video = document.getElementById("camera");
+  video.classList.remove("hidden");
+
+  const stream = await navigator.mediaDevices.getUserMedia({ video:true });
+  video.srcObject = stream;
+
+  setTimeout(()=>{
+    const canvas = document.getElementById("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video,0,0);
+
+    canvas.toBlob(blob=>{
+      selectedFile = new File([blob],"camera.jpg",{type:"image/jpeg"});
+
+      document.getElementById("previewPhoto").src = URL.createObjectURL(blob);
+      document.getElementById("previewPhoto").classList.remove("hidden");
+
+      stream.getTracks().forEach(t=>t.stop());
+      video.classList.add("hidden");
+    });
+
+  },2000);
+};
 loadUsers();
 
 </script>
