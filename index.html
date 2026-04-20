@@ -14,6 +14,19 @@
   overflow: hidden;
 }
 
+.hero-wall video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 768px) {
+  .hero-wall video {
+    object-fit: contain;
+    background: black;
+  }
+}
+
 .hero-wall video,
 .hero-wall img {
   width: 100%;
@@ -228,10 +241,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/fireba
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCEFcwjYF3ikR0wdV0bnok50w_TkB_PAVc",
-  authDomain: "ma-money3.firebaseapp.com",
-  databaseURL: "https://ma-money3-default-rtdb.firebaseio.com",
-  projectId: "ma-money3"
+    apiKey: "AIzaSyCxBRBCJJL8ljgpL5vIYzvkMQn-1Mlreq8",
+    authDomain: "ma-money4.firebaseapp.com",
+    databaseURL: "https://ma-money4-default-rtdb.firebaseio.com",
+    projectId: "ma-money4"
+
 };
 
 const app = initializeApp(firebaseConfig);
@@ -282,54 +296,52 @@ const ad = maliMedia[index];
 // 🎬 VIDEO
 if (ad.type === "video") {
 
-  video.src = ad.url;
-  video.style.display = "block";
-  image.style.display = "none";
+video.src = ad.url;
+video.style.display = "block";
+image.style.display = "none";
+video.muted = isMuted;
+currentIsVideo = true;
 
-  video.muted = isMuted;
-  video.play().catch(()=>{});
+// ⚡ attendre chargement réel
+video.onloadedmetadata = () => {
 
-  currentIsVideo = true;
+video.play().catch(()=>{});
 
-// 🖼 IMAGE
-} else {
+// ⏱ durée = durée réelle vidéo OU définie
+const duration = ad.duration || video.duration || 10;
 
-  image.src = ad.url;
-  image.style.display = "block";
-  video.style.display = "none";
+currentTimeout = setTimeout(() => {
+index = (index + 1) % maliMedia.length;
+switchMedia();
+}, duration * 1000);
 
-  currentIsVideo = false;
+};
+
 }
 
-// ⏱ durée personnalisée
+// 🖼 IMAGE
+else {
+
+image.src = ad.url;
+image.style.display = "block";
+video.style.display = "none";
+currentIsVideo = false;
+
 const duration = ad.duration || 10;
 
 currentTimeout = setTimeout(() => {
-  index = (index + 1) % maliMedia.length;
-  switchMedia();
+index = (index + 1) % maliMedia.length;
+switchMedia();
 }, duration * 1000);
 
 }
 
+}
+
 // Restart slider
-function restartSlider() {
-
-clearInterval(interval);
-
+function restartSlider(){
+index = 0;
 switchMedia();
-
-interval = setInterval(() => {
-
-if(currentIsVideo){
-if(video.duration > 0){
-setTimeout(switchMedia, video.duration * 1000);
-}
-}else{
-setTimeout(switchMedia, 10000);
-}
-
-}, 1000);
-
 }
 restartSlider();
 
@@ -358,3 +370,4 @@ restartSlider();
 
 </body>
 </html>
+
