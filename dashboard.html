@@ -91,6 +91,191 @@ input, textarea { width: 100%; padding: 12px; margin-top: 10px; border-radius: 1
 #userAvatar:hover {
   transform: scale(1.08);
 }
+
+.header {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+display: flex;
+justify-content: space-between; /* 🔥 clé */
+align-items: center;
+padding: 12px 18px;
+background: rgba(0,0,0,0.6);
+backdrop-filter: blur(12px);
+color: white;
+z-index: 999;
+}
+
+.logo {
+font-size: 20px;
+font-weight: bold;
+}
+
+.header-right {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-right: 30px;
+position: relative; /* 🔥 AJOUT ICI */
+}
+
+.profile-pic {
+width: 42px;
+height: 42px;
+border-radius: 50%;
+object-fit: cover;
+border: 2px solid white;
+cursor: pointer;
+}
+
+body {
+  margin: 0;
+  padding-top: 70px; /* 🔥 espace pour le header */
+}
+
+.profile-container {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  cursor: pointer;
+}
+
+.profile-pic {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: #00ff88;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+/* MENU */
+.user-menu {
+position: fixed;
+top: 75px;
+right: 20px;
+width: 240px;
+
+background: rgba(0,0,0,0.65);
+backdrop-filter: blur(15px);
+
+border-radius: 16px;
+box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+
+padding: 15px;
+display: flex;
+flex-direction: column;
+gap: 10px;
+
+z-index: 2000;
+transition: 0.3s;
+}
+
+.user-menu.hidden {
+opacity: 0;
+transform: translateY(-10px);
+pointer-events: none;
+}
+
+.user-menu:not(.hidden) {
+opacity: 1;
+transform: translateY(0);
+}
+
+.user-menu button {
+background: rgba(255,255,255,0.08);
+color: white;
+border: none;
+padding: 10px;
+border-radius: 10px;
+cursor: pointer;
+text-align: left;
+transition: 0.2s;
+}
+
+.user-menu button:hover {
+background: rgba(255,255,255,0.2);
+}
+
+.hidden {
+  display: none;
+}
+
+.menu-profile {
+display: flex;
+flex-direction: column;
+align-items: center;
+margin-bottom: 10px;
+}
+
+.menu-profile img {
+width: 90px;
+height: 90px;
+border-radius: 50%;
+object-fit: cover;
+border: 3px solid #ff9a00;
+box-shadow: 0 0 15px rgba(255,154,0,0.5);
+margin-bottom: 5px;
+}
+
+.menu-profile p {
+color: white;
+font-weight: bold;
+font-size: 15px;
+margin-top: 5px;
+}
+
+.menu-profile img {
+transition: 0.3s;
+}
+
+.notif-badge {
+position: absolute;
+top: -6px;
+right: -6px;
+
+background: linear-gradient(45deg,#ff3d00,#ff0000);
+color: white;
+
+font-size: 10px;
+font-weight: bold;
+
+padding: 4px 7px;
+border-radius: 50%;
+
+box-shadow: 0 0 10px rgba(255,0,0,0.6);
+}
+
+.verified {
+position: absolute;
+bottom: -2px;
+left: -2px;
+background: #1da1f2;
+color: white;
+font-size: 10px;
+padding: 2px;
+border-radius: 50%;
+border: 2px solid white;
+}
+
+.menu-status {
+color: #00ff88;
+font-size: 12px;
+margin-top: 2px;
+opacity: 0.9;
+}
+
 </style>
 </head>
 
@@ -100,23 +285,35 @@ input, textarea { width: 100%; padding: 12px; margin-top: 10px; border-radius: 1
 <source src="bg.mp4" type="video/mp4">
 </video>
 
-<header class="main-header">
-  <div class="header-content">
+<header class="header">
+  <div class="logo">💎 MaliPay</div>
 
-    <div class="logo">
-      💎 <span>MaliPay</span>
-    </div>
+  <div class="header-right">
+    <div class="profile-container" onclick="toggleMenu(event)">
+      <img id="profilePic" class="profile-pic" src="" alt="profil">
 
-    <div class="header-right">
-     
-      <!-- PHOTO UTILISATEUR -->
-      <img id="userAvatar" src="https://via.placeholder.com/40" />
+      <div class="status-dot"></div>
+      <div class="verified">✔</div>
 
-      <span class="status-dot"></span>
-    </div>
-
+      <!-- 🔥 BADGE -->
+      <div id="notifBadge" class="notif-badge">0</div>
+</div>
   </div>
 </header>
+
+<div id="userMenu" class="user-menu hidden">
+
+<!-- 🔥 PHOTO PROFIL AGRANDIE -->
+<div class="menu-profile">
+<img id="menuProfilePic" src="" alt="profil">
+<p id="menuUserName"></p>
+<span class="menu-status">● En ligne</span>
+</div>
+
+<button onclick="changePhoto()">📸 Changer photo</button>
+<button onclick="logout()">🚪 Déconnexion</button>
+
+</div>
 <main>
 <section class="dashboard-box">
 
@@ -169,29 +366,31 @@ input, textarea { width: 100%; padding: 12px; margin-top: 10px; border-radius: 1
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
 import { getDatabase, ref, get, update, push, remove } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
-
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-storage.js";
 const firebaseConfig = {
-    apiKey: "AIzaSyCxBRBCJJL8ljgpL5vIYzvkMQn-1Mlreq8",
-    authDomain: "ma-money4.firebaseapp.com",
-    databaseURL: "https://ma-money4-default-rtdb.firebaseio.com",
-    projectId: "ma-money4"
+  apiKey: "AIzaSyCxBRBCJJL8ljgpL5vIYzvkMQn-1Mlreq8",
+  authDomain: "ma-money4.firebaseapp.com",
+  databaseURL: "https://ma-money4-default-rtdb.firebaseio.com",
+  projectId: "ma-money4",
+  storageBucket: "ma-money4.firebasestorage.app", // ✅ TRÈS IMPORTANT
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 let currentUser = JSON.parse(localStorage.getItem("loggedUser"));
 if(!currentUser) window.location.href="login.html";
-const avatar = document.getElementById("userAvatar");
 
-if(currentUser.photoURL){
-  avatar.src = currentUser.photoURL;
-}
 const welcome=document.getElementById("welcome");
 const soldeBox=document.getElementById("solde");
 const messageBox=document.getElementById("message");
+const profilePic = document.getElementById("profilePic");
+const menuProfilePic = document.getElementById("menuProfilePic");
+const menuUserName = document.getElementById("menuUserName");
 const notifBox=document.getElementById("notifBox");
 const notifCount=document.getElementById("notifCount");
+const notifBadge = document.getElementById("notifBadge");
 const sendBtn=document.getElementById("sendBtn");
 const receiverInput=document.getElementById("receiver");
 const amountInput=document.getElementById("amount");
@@ -242,16 +441,24 @@ return null;
 function formatMoney(a){ return Number(a).toLocaleString("fr-FR"); }
 
 async function loadBalance(){
-const snap=await get(ref(db,"users/"+currentUser.phone));
-if(snap.exists()){
-currentUser=snap.val();
-if(currentUser.photoURL){
-  document.getElementById("userAvatar").src = currentUser.photoURL;
-}
-localStorage.setItem("loggedUser",JSON.stringify(currentUser));
-const cur=getCurrency(currentUser.phone);
-soldeBox.innerText=formatMoney(currentUser.solde)+" "+cur.symbol;
-}
+  const snap = await get(ref(db,"users/"+currentUser.phone));
+
+  if(snap.exists()){
+    currentUser = snap.val();
+    localStorage.setItem("loggedUser", JSON.stringify(currentUser));
+
+    const cur = getCurrency(currentUser.phone);
+    soldeBox.innerText = formatMoney(currentUser.solde) + " " + cur.symbol;
+
+    // 🔥 PHOTO PROFIL
+    let photoUrl = currentUser.photo
+      ? currentUser.photo
+      : "https://i.imgur.com/6VBx3io.png";
+
+      profilePic.src = photoUrl;
+      menuProfilePic.src = photoUrl;
+      menuUserName.innerText = currentUser.name;
+  }
 }
 loadBalance();
 
@@ -474,7 +681,7 @@ amountConverted: tx.amountConverted,
 fee: tx.fee,
 rateUsed: tx.rateUsed,
 reason: tx.reason,
-date: Date.new(),
+date: new Date().toLocaleString(),
 scheduled: true,
 status: "executed"
 });
@@ -512,7 +719,6 @@ executedAt:Date.now()
 /* Vérification toutes les 5 secondes */
 processScheduledTransfers();
 setInterval(processScheduledTransfers,5000);
-
 
 /* ===============================
    SYSTEME RECLAMATION PRO
@@ -583,6 +789,8 @@ ${n.claimable?`<button onclick="sendClaim('${n.txId}')" style="background:red;">
 });
 }
 notifCount.innerText=count;
+notifBadge.innerText = count;
+notifBadge.style.display = count > 0 ? "block" : "none";
 }
 loadNotifications();
 
@@ -609,6 +817,64 @@ window.togglePassword=()=>passwordBox.style.display=passwordBox.style.display===
 window.toggleTransfer=()=>transferBox.style.display=transferBox.style.display==="none"?"block":"none";
 window.logout=function(){localStorage.removeItem("loggedUser");window.location.href="login.html";};
 
+const userMenu = document.getElementById("userMenu");
+
+window.toggleMenu = (e) => {
+e.stopPropagation();
+userMenu.classList.toggle("hidden");
+};
+
+window.changePhoto = () => {
+const input = document.createElement("input");
+input.type = "file";
+input.accept = "image/*";
+
+input.onchange = async (e) => {
+const file = e.target.files[0];
+if(!file) return;
+
+try {
+const storageRef = sRef(storage, "users/" + currentUser.phone + "_profile.jpg");
+
+await uploadBytes(storageRef, file);
+
+const url = await getDownloadURL(storageRef);
+
+// 🔥 FIREBASE DATABASE
+await update(ref(db, "users/" + currentUser.phone), {
+photo: url
+});
+
+// 🔥 LOCAL STORAGE (MANQUAIT !!!)
+currentUser.photo = url;
+localStorage.setItem("loggedUser", JSON.stringify(currentUser));
+
+// 🔥 UI UPDATE
+profilePic.src = url;
+menuProfilePic.src = url;
+
+alert("✅ Photo mise à jour");
+
+} catch(e) {
+alert("❌ " + e.message);
+}
+};
+
+input.click();
+};
+
+document.addEventListener("click", (e) => {
+const menu = document.getElementById("userMenu");
+const profile = document.querySelector(".profile-container");
+
+if (!menu.contains(e.target) && !profile.contains(e.target)) {
+menu.classList.add("hidden");
+}
+});
+
 </script>
 </body>
 </html>
+
+
+
