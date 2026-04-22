@@ -276,6 +276,158 @@ margin-top: 2px;
 opacity: 0.9;
 }
 
+/* ===== STYLE 3 ===== */
+
+.main-card {
+background: linear-gradient(135deg, #ff512f, #dd2476);
+color: white;
+padding: 25px;
+border-radius: 25px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 20px;
+box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+position: relative;
+overflow: hidden;
+}
+
+.main-card h1 {
+font-size: 28px;
+margin-top: 10px;
+}
+
+.wallet-icon {
+background: rgba(255,255,255,0.15);
+padding: 20px;
+border-radius: 20px;
+font-size: 30px;
+}
+
+.main-card::after {
+content: "";
+position: absolute;
+right: -40px;
+top: -40px;
+width: 150px;
+height: 150px;
+background: rgba(255,255,255,0.1);
+border-radius: 50%;
+}
+
+.actions-grid {
+display: grid;
+grid-template-columns: repeat(2,1fr);
+gap: 12px;
+}
+
+.action-box {
+background: white;
+padding: 15px;
+border-radius: 15px;
+text-align: center;
+font-size: 20px;
+cursor: pointer;
+transition: 0.2s;
+box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.action-box span {
+display: block;
+font-size: 13px;
+margin-top: 5px;
+}
+
+.action-box:hover {
+transform: scale(1.05);
+background: #fff3e0;
+}
+
+.notif-btn {
+position: relative;
+}
+
+.mini-badge {
+position: absolute;
+top: 8px;
+right: 12px;
+background: red;
+color: white;
+font-size: 10px;
+padding: 3px 6px;
+border-radius: 50%;
+display: none;
+}
+
+.modal {
+position: fixed;
+top: 0;
+left: 0;
+width: 100%;
+height: 100%;
+background: rgba(0,0,0,0.6);
+display: flex;
+justify-content: center;
+align-items: center;
+z-index: 9999;
+}
+
+.modal-content {
+background: white;
+width: 90%;
+max-width: 400px;
+border-radius: 20px;
+padding: 20px;
+position: relative;
+
+max-height: 80vh;
+overflow-y: auto;
+}
+
+.close {
+position: absolute;
+top: 10px;
+right: 15px;
+cursor: pointer;
+font-size: 18px;
+}
+
+.hidden {
+display: none;
+}
+
+.history-box {
+margin-top: 20px;
+background: white;
+padding: 15px;
+border-radius: 15px;
+box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.history-item {
+background: #fff;
+padding: 12px;
+margin-bottom: 8px;
+border-radius: 10px;
+box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+font-size: 14px;
+}
+
+.arrow-up {
+color: red;
+animation: blink 1s infinite;
+}
+
+.arrow-down {
+color: green;
+animation: blink 1s infinite;
+}
+
+@keyframes blink {
+0%{opacity:1;}
+50%{opacity:0.3;}
+100%{opacity:1;}
+}
 </style>
 </head>
 
@@ -317,51 +469,82 @@ opacity: 0.9;
 <main>
 <section class="dashboard-box">
 
-<h2 id="welcome"></h2>
-
-<p>💰 Solde actuel</p>
-<p id="solde" style="font-size:26px;font-weight:bold;color:#ff9a00;"></p>
-
-<button onclick="logout()" style="background:crimson;">🚪 Déconnexion</button>
-
-<hr>
-
-<h3 onclick="toggleNotifications()" style="cursor:pointer;">
-📩 Notifications (<span id="notifCount">0</span>)
-</h3>
-<div id="notifBox" style="display:none;"></div>
-
-<hr>
-
-<h3 onclick="togglePassword()" style="cursor:pointer;">
-🔐 Changer mot de passe
-</h3>
-<div id="passwordBox" style="display:none;">
-<input id="oldPass" type="password" placeholder="Ancien mot de passe">
-<input id="newPass" type="password" placeholder="Nouveau mot de passe">
-<button onclick="changePassword()">Modifier</button>
-<p id="passMsg"></p>
+<!-- 🔥 CARTE STYLE 3 -->
+<div class="main-card">
+  <div>
+    <h2 id="welcome"></h2>
+    <p>💰 Solde disponible</p>
+    <h1 id="solde"></h1>
+  </div>
+  <div class="wallet-icon">💼</div>
 </div>
 
-<hr>
+<!-- 🔥 BOUTONS -->
+<div class="actions-grid">
 
-<h3 onclick="toggleTransfer()" style="cursor:pointer;">
-💸 Envoyer de l'argent
-</h3>
+  <div class="action-box" onclick="openModal('transferBox')">
+    💸
+    <span>Envoyer</span>
+  </div>
+
+  <div class="action-box" onclick="openModal('passwordBox')">
+    🔐
+    <span>Mot de passe</span>
+  </div>
+
+  <div class="action-box notif-btn" onclick="openModal('notifBox')">
+  🔔
+  <span>Notifications</span>
+  <div id="notifMiniBadge" class="mini-badge">0</div>
+</div>
+
+  <div class="action-box" onclick="logout()">
+    🚪
+    <span>Quitter</span>
+  </div>
+
+</div>
+
+<!-- 🔥 CONTENU (INVISIBLE AU DÉBUT) -->
+
+<div id="notifBox" style="display:none;"></div>
+
+<div id="passwordBox" style="display:none;">
+  <input id="oldPass" type="password" placeholder="Ancien mot de passe">
+  <input id="newPass" type="password" placeholder="Nouveau mot de passe">
+  <button onclick="changePassword()">Modifier</button>
+  <p id="passMsg"></p>
+</div>
 
 <div id="transferBox" style="display:none;">
-<input id="receiver" placeholder="Numéro destinataire">
-<input id="amount" type="number" placeholder="Montant">
-<div id="conversionBox"></div>
-<textarea id="reason" placeholder="Raison (facultatif)"></textarea>
-<label>📅 Programmer transfert (optionnel)</label>
-<input id="scheduleDate" type="datetime-local">
-<button id="sendBtn" onclick="sendMoney()">Envoyer</button>
-<p id="message"></p>
+  <input id="receiver" placeholder="Numéro destinataire">
+  <input id="amount" type="number" placeholder="Montant">
+  <div id="conversionBox"></div>
+  <textarea id="reason" placeholder="Raison (facultatif)"></textarea>
+  <input id="scheduleDate" type="datetime-local">
+  <button id="sendBtn" onclick="sendMoney()">Envoyer</button>
+  <p id="message"></p>
 </div>
 
 </section>
 </main>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">✖</span>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="history-box" style="max-width:420px;margin:20px auto;">
+<h3 onclick="toggleHistory()" style="cursor:pointer;">
+🕒 Activités récentes
+</h3>
+
+<div id="historyContent" style="display:none;">
+<div id="historyList"></div>
+</div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
@@ -389,7 +572,6 @@ const profilePic = document.getElementById("profilePic");
 const menuProfilePic = document.getElementById("menuProfilePic");
 const menuUserName = document.getElementById("menuUserName");
 const notifBox=document.getElementById("notifBox");
-const notifCount=document.getElementById("notifCount");
 const notifBadge = document.getElementById("notifBadge");
 const sendBtn=document.getElementById("sendBtn");
 const receiverInput=document.getElementById("receiver");
@@ -583,7 +765,8 @@ phone:sender.phone,
 amount:convertedAmount,
 reason,
 date:new Date().toLocaleString(),
-claimable:false
+claimable:false,
+seen:false
 });
 
 await push(ref(db,"notifications/"+sender.phone),{
@@ -593,6 +776,7 @@ amount:amount,
 reason,
 date:new Date().toLocaleString(),
 claimable:true,
+seen:false,
 txId:tx.key
 });
 
@@ -768,33 +952,43 @@ alert("Votre réclamation a été envoyée au service.");
 };
 
 /* ===== NOTIFICATIONS ===== */
-
 async function loadNotifications(){
-const snap=await get(ref(db,"notifications/"+currentUser.phone));
-notifBox.innerHTML="";
-let count=0;
+const snap = await get(ref(db,"notifications/"+currentUser.phone));
+notifBox.innerHTML = "";
+let count = 0;
+
 if(snap.exists()){
 Object.entries(snap.val()).reverse().forEach(([id,n])=>{
-count++;
-notifBox.innerHTML+=`
+if(!n.seen) count++;
+
+notifBox.innerHTML += `
 <div class="user-card">
 <strong>${n.title}</strong><br>
 📱 ${n.phone}<br>
 💰 ${formatMoney(n.amount)}<br>
 🕒 ${n.date}<br>
-${n.reason||""}
-${n.claimable?`<button onclick="sendClaim('${n.txId}')" style="background:red;">🚨 Réclamation</button>`:""}
+${n.reason || ""}
+${n.claimable ? `<button onclick="sendClaim('${n.txId}')" style="background:red;">🚨 Réclamation</button>` : ""}
 <button onclick="deleteNotif('${id}')" style="background:crimson;">🗑 Supprimer</button>
 </div>`;
 });
 }
-notifCount.innerText=count;
+
+/* BADGE HEADER */
 notifBadge.innerText = count;
 notifBadge.style.display = count > 0 ? "block" : "none";
+
+/* BADGE BOUTON 🔔 */
+const miniBadge = document.getElementById("notifMiniBadge");
+if(miniBadge){
+miniBadge.innerText = count;
+miniBadge.style.display = count > 0 ? "block" : "none";
 }
+}
+
 loadNotifications();
 
-window.deleteNotif=async function(id){
+window.deleteNotif = async function(id){
 await remove(ref(db,"notifications/"+currentUser.phone+"/"+id));
 loadNotifications();
 };
@@ -821,6 +1015,12 @@ const userMenu = document.getElementById("userMenu");
 
 window.toggleMenu = (e) => {
 e.stopPropagation();
+
+const modal = document.getElementById("modal");
+
+/* bloque si modal ouvert */
+if(!modal.classList.contains("hidden")) return;
+
 userMenu.classList.toggle("hidden");
 };
 
@@ -872,9 +1072,112 @@ menu.classList.add("hidden");
 }
 });
 
+window.openModal = async function(contentId) {
+
+const modal = document.getElementById("modal");
+const modalBody = document.getElementById("modalBody");
+const content = document.getElementById(contentId);
+
+/* 🔥 RESET */
+modalBody.innerHTML = "";
+
+/* 🔥 AJOUT CONTENU */
+modalBody.appendChild(content);
+content.style.display = "block";
+
+/* 🔥 AFFICHER MODAL */
+modal.classList.remove("hidden");
+
+/* =========================================
+🔥 ICI ON MARQUE LES NOTIFICATIONS COMME VUES
+========================================= */
+if(contentId === "notifBox"){
+
+const snap = await get(ref(db,"notifications/"+currentUser.phone));
+
+if(snap.exists()){
+
+Object.entries(snap.val()).forEach(([id,n])=>{
+
+if(!n.seen){
+
+update(ref(db,"notifications/"+currentUser.phone+"/"+id),{
+seen:true
+});
+
+}
+
+});
+
+}
+
+/* 🔥 RECHARGER POUR METTRE BADGE A JOUR */
+setTimeout(loadNotifications, 300);
+
+}
+
+};
+
+window.closeModal = function() {
+const modal = document.getElementById("modal");
+modal.classList.add("hidden");
+
+/* 🔥 IMPORTANT */
+document.getElementById("notifBox").style.display="none";
+document.getElementById("transferBox").style.display="none";
+document.getElementById("passwordBox").style.display="none";
+}
+
+async function loadHistory(){
+const snap = await get(ref(db,"history"));
+
+const historyList = document.getElementById("historyList");
+historyList.innerHTML = "";
+
+if(snap.exists()){
+Object.values(snap.val()).reverse().slice(0,5).forEach(tx=>{
+const isSent = tx.from === currentUser.phone;
+
+historyList.innerHTML += `
+<div class="history-item">
+
+${isSent
+? `<span class="arrow-up">⬆</span> -${tx.amountOriginal}`
+: `<span class="arrow-down">⬇</span> +${tx.amountOriginal}`}
+
+<br>
+📱 ${tx.to}
+<br>
+🕒 ${tx.date}
+
+<button onclick="deleteHistory('${tx.date}')" style="float:right;background:red;color:white;border:none;border-radius:8px;padding:3px 6px;">X</button>
+
+</div>`;
+});
+}
+}
+
+loadHistory();
+
+window.toggleHistory = function(){
+const box = document.getElementById("historyContent");
+box.style.display = box.style.display === "none" ? "block" : "none";
+};
+
+window.deleteHistory = async function(date){
+const snap = await get(ref(db,"history"));
+if(!snap.exists()) return;
+
+Object.entries(snap.val()).forEach(([id,tx])=>{
+if(tx.date === date){
+remove(ref(db,"history/"+id));
+}
+});
+
+loadHistory();
+};
 </script>
 </body>
 </html>
-
 
 
